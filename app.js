@@ -1,6 +1,7 @@
 const express = require("express");
 const bcryptjs = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const bodyParser = require('body-parser');
 const cors = require("cors");
 const io = require("socket.io")(8080, {
   cors: {
@@ -19,6 +20,7 @@ const Messages = require("./models/Messages");
 
 // app use
 app.use(express.json());
+app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cors());
 
@@ -52,6 +54,14 @@ io.on("connection", (socket) => {
             receiverId,
             user: { id: user._id, fullName: user.fullName, email: user.email },
           });
+      } else {
+        io.to(sender.socketId).emit("getMessage", {
+          senderId,
+          message,
+          conversationId,
+          receiverId,
+          user: { id: user._id, fullName: user.fullName, email: user.email },
+        });
       }
     }
   );
@@ -61,7 +71,7 @@ io.on("connection", (socket) => {
   });
   // io.emit('getUsers',socket.userId);
 });
-// route
+// route tui ten hieu
 app.get("/", (req, res) => {
   res.send("Welcome");
   res.end();
@@ -69,24 +79,25 @@ app.get("/", (req, res) => {
 
 app.post("/api/register", async (req, res, next) => {
   try {
-    const { fullName, email, password } = req.body;
+    console.log(req.body);
+    const { fullName, email, password, avatar } = req.body;
 
-    if (!fullName || !email || !password) {
-      res.status(400).send("please fill all requied field");
-    } else {
-      const isAlreadyExist = await Users.findOne({ email });
-      if (isAlreadyExist) {
-        res.status(400).send("User already exits");
-      } else {
-        const newUser = new Users({ fullName, email });
-        bcryptjs.hash(password, 10, (err, hashedPassword) => {
-          newUser.set("password", hashedPassword);
-          newUser.save();
-          next();
-        });
-        return res.status(200).send("User registered successfully");
-      }
-    }
+    // if (!fullName || !email || !password) {
+    //   res.status(400).send("please fill all requied field");
+    // } else {
+    //   const isAlreadyExist = await Users.findOne({ email });
+    //   if (isAlreadyExist) {
+    //     res.status(400).send("User already exits");
+    //   } else {
+    //     const newUser = new Users({ fullName, email });
+    //     bcryptjs.hash(password, 10, (err, hashedPassword) => {
+    //       newUser.set("password", hashedPassword);
+    //       newUser.save();
+    //       next();
+    //     });
+    //     return res.status(200).send("User registered successfully");
+    //   }
+    // }
   } catch (error) {
     console.log(error, "error register");
   }
@@ -188,7 +199,6 @@ app.get("/api/conversation/:userId", async (req, res) => {
 app.post("/api/message", async (req, res) => {
   try {
     const { conversationId, senderId, message, receiverId = "" } = req.body;
-    console.log(req.body, "body ne nenenenenen");
     if (!senderId || !message)
       return res.status(400).send("please fill all required fields111");
     if (conversationId === "new" && receiverId) {
